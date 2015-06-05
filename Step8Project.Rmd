@@ -1,0 +1,72 @@
+---
+title: "Human Activity Recognition"
+author: "NeighborhoodGuo"
+date: "Wednesday, June 03, 2015"
+output: html_document
+---
+  
+  
+##Select a suitable model
+As we all known, there's a bunch of models that we can use. That makes me a little be dazzled. But not be discouraged. Haha, because I have so many models can choose from.  
+Joking apart, let's talk about how to select a suitable model.  
+First of all, we can see our goal is to distinguish five different activities from a large amount of data. As child knows, it is a classification problem. As we can see, the dataset is very detail, each sample is tagged as A,B,C,D or E. Detail dataset makes our job much more easy. So this is also a supervised learning problem.  
+For a problem which is both supervised and classification we have a lot of excellent model can use.  
+But before expound how to choose a excellent model. I should talk about the dataset first.  
+  
+  
+```{r explore dataset, cache=TRUE}
+training <- read.csv("pml-training.csv", row.names = NULL)
+testing <- read.csv("pml-testing.csv", row.names = NULL)
+sapply(training, var)
+```
+  
+As we can see, this dataset has a lot of columns which have a great proportion of NA. And there's so many columns that don't have necessary information.  
+Firstly, we should tide this dataset, in order to make my training more accurately.  
+It's obvious that the name, x, sample time columns has no help traning our model.  
+
+```{r tide the dataset}
+trainClass <- sapply(training, class)
+trainNofac <- training[,!(trainClass == "factor")]
+trainParNoNa <- !(sapply(trainNofac[1,], is.na))
+trainParNoNa <- trainNofac[,trainParNoNa]
+trainTide <- subset(trainParNoNa, select = c(-X, -raw_timestamp_part_1, -raw_timestamp_part_2, -num_window))
+trainTide$classe <- training$classe
+names(trainTide)
+```
+  
+It's more tidy.
+Let's continue to talk about selecting model.  
+Since our goal is to choose a excellent classification and supervised model and our data are all numbers. I found that Linear discrimination Model, Naive bayes, Rondom Forest satisify my request.  
+  
+##Cross valiation
+In order to choose the most excellent model. I need to do a model selection.  
+Since we have a bunch of data. "Waste" 30% of my data should be OK.  
+Then I split my training data to real training data (70% of the data) and cross validation data (30% of the data). We only use the real training data to train my model, use the cross validation data to distinguish the best dataset.  
+  
+```{r cross valiation}
+library(caret)
+inTrain <- createDataPartition(y = trainTide$classe, p = 0.7, list = FALSE)
+trainPar <- training[inTrain,]
+cv <- training[-inTrain,]
+```  
+
+The naive byes has 73.40% accuracy.  
+The Linear discrimination Model has 76.02% accuracy.  
+The random forest has 99.16% accuracy!!!  
+  
+So I choose random forest as my model.  
+Following is my cofusion table.  
+
+predrf    A    B    C    D    E  
+     A 1672   10    0    0    0  
+     B    2 1125    5    0    1  
+     C    0    3 1014   13    2  
+     D    0    1    7  951    5  
+     E    0    0    0    0 1074  
+     
+##Expected out sample error
+From the website: http://groupware.les.inf.puc-rio.br/har  
+The bottom most picture tells us that the more similar our activities the more probably our model make mistakes.  
+I figure out that there might be two reasons lead this result.  
+1.The sensor may make mistakes while sample our dataset.  
+2.Some activites may be too similar that our subject can not do the activites accuracy.  
